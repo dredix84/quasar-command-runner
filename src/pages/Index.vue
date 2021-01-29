@@ -9,27 +9,67 @@
 
         <q-card flat bordered class="my-card q-mx-md q-my-md" v-else>
           <q-card-section>
-            <div class="text-h6">My Commands</div>
+            <div class="text-h6">
+              My Commands
+              <q-badge align="top">{{ commands.length }}</q-badge>
+            </div>
           </q-card-section>
 
           <q-card-section class="q-pt-none" style="width: 100%">
             <q-list padding bordered class="rounded-borders">
               <q-expansion-item
-                v-for="command in commands"
+                v-for="(command, cIndex) in commands"
                 dense
                 dense-toggle
                 expand-separator
                 :icon="command.icon.value"
                 :label="command.title + (command.busy ? ' -- PROCESSING' : '')"
                 :class="{busy: command.busy}"
+                :key="command.id"
               >
                 <q-card>
                   <q-card-section>
                     <div>
-                      <q-chip square color="gray" text-color="black">
+                      <q-btn
+                        color="negative"
+                        size="sm"
+                        icon-right="delete"
+                        @click="handleRemoveCommand(cIndex)"
+                        class="q-mr-sm "
+                        label="Delete"
+                      >
+                        <q-tooltip>
+                          Remove <span class="text-bold">{{ command.title }}</span> command
+                        </q-tooltip>
+                      </q-btn>
+                      <q-btn
+                        color="warning"
+                        size="sm"
+                        icon-right="edit"
+                        @click="handleShowEditCommandDialog(command)"
+                        class="q-mr-sm "
+                        label="Edit"
+                      >
+                        <q-tooltip>
+                          Edit <span class="text-bold">{{ command.title }}</span> command
+                        </q-tooltip>
+                      </q-btn>
+                      <q-btn
+                        color="positive"
+                        size="sm"
+                        icon-right="send" label="Execute"
+                        @click="execute(command)"
+                      >
+                        <q-tooltip>
+                          Run <span class="text-bold">{{ command.title }}</span> command
+                        </q-tooltip>
+                      </q-btn>
+                      <br/>
+
+                      <q-chip square color="gray" text-color="black" class="q-my-sm">
                         <q-avatar icon="event" color="primary" text-color="white"/>
                         <span class="text-bold">Last Executed: </span><span
-                        v-if="command.lastExecuted">{{ command.lastExecuted }}</span>
+                        v-if="command.lastExecuted">{{ command.lastExecuted | moment("llll") }}</span>
                         <span v-else> Never executed</span>
                       </q-chip>
                       <br/>
@@ -41,14 +81,6 @@
                           {{ command.command }}
                         </q-tooltip>
                       </q-chip>
-
-                      <q-btn
-                        color="positive"
-                        size="sm"
-                        icon-right="send" label="Execute"
-                        @click="execute(command)"
-                        class="q-mb-sm"
-                      />
                     </div>
                     <div>
                       <div class="row">
@@ -144,7 +176,7 @@
     <q-dialog v-model="newCommandShowDialog" persistent transition-show="flip-down" transition-hide="flip-up">
       <q-card style="min-width: 450px">
         <q-card-section>
-          <div class="text-h6">Create New Command</div>
+          <div class="text-h6">Create/Edit Command</div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
@@ -162,7 +194,7 @@
           />
 
           <q-chip square>
-            <q-avatar :icon="options.icons" color="red" text-color="white"/>
+            <q-avatar :icon="newCommand.icon.value" color="red" text-color="white"/>
             {{ computeCommandString(newCommand) }}
           </q-chip>
 
@@ -181,7 +213,7 @@
               </div>
             </q-item-label>
 
-            <q-item v-for="(variable, vIndex) in newCommand.variables">
+            <q-item v-for="(variable, vIndex) in newCommand.variables" :key="'commandVar' + vIndex">
               <q-item-section avatar top>
                 <q-icon name="keyboard" color="black" size="34px"/>
               </q-item-section>
@@ -207,9 +239,12 @@
 
         </q-card-section>
 
-        <q-card-actions align="right" class="text-primary">
+        <q-card-actions align="right" class="text-primary" v-if="newCommand.id === null">
           <q-btn flat label="Cancel" v-close-popup/>
           <q-btn flat label="Add Command" v-close-popup @click="handleUserEnterNewCommand"/>
+        </q-card-actions>
+        <q-card-actions align="right" class="text-primary" v-else>
+          <q-btn flat label="Done" v-close-popup @click="handleEditCommandDialogClose"/>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -251,11 +286,34 @@ export default {
           {label: 'Star', value: 'star'},
           {label: 'Execution', value: 'ondemand_video'},
           {label: 'Send', value: 'send'},
+          {label: 'Alarm', value: 'alarm'},
+          {label: 'History', value: 'history'},
         ]
       }
     }
   },
   methods: {
+    handleRemoveCommand(index) {
+      let self = this;
+      this.$q.dialog({
+        title: 'Confirm',
+        message: `Are you sure you want to remove "${this.commands[index].title}"`,
+        cancel: true,
+        persistent: true
+      }).onOk(() => {
+        this.$q.notify({
+          message: 'Command removed.',
+          icon: 'info',
+          type: 'info',
+        });
+        this.commands.splice(index, 1);
+        self.persistCommands();
+      });
+    },
+    handleShowEditCommandDialog(command) {
+      this.newCommand = command;
+      this.newCommandShowDialog = true;
+    },
     handleRemoveCommandVariable(index) {
       let name = this.newCommand.variables[index].name;
       name = ` [[${name}]]`;
@@ -281,7 +339,7 @@ export default {
           this.newCommand.id = uuid()
           this.commands.push(this.newCommand)
         }
-        this.$q.localStorage.set('commands', this.commands);
+        this.persistCommands()
         this.newCommandShowDialog = false;
         this.$q.notify({
           message: 'Command added.',
@@ -289,6 +347,18 @@ export default {
           type: 'positive',
         });
       }
+    },
+    handleEditCommandDialogClose() {
+      let self = this;
+      setTimeout(
+        function () {
+          self.persistCommands();
+        },
+        500
+      );
+    },
+    persistCommands() {
+      this.$q.localStorage.set('commands', this.commands);
     },
     handleCustomExecuteShowDialog() {
       this.customPrompt = true;
@@ -371,7 +441,8 @@ export default {
         type: 'info',
       })
 
-      this.exec(command, (error, stdout, stderr) => {
+      let timeout = this.$store.state.settings.timeout;
+      this.exec(command, {timeout}, (error, stdout, stderr) => {
         if (stdout) {
           if (typeof commandRaw === 'object') {
             commandRaw.lastResult = stdout;
@@ -379,7 +450,7 @@ export default {
           }
           if (callback) {
             callback(stdout);
-          } else {
+          } else if(this.$store.state.settings.showResultDialog === true){
             self.showResultDialog(stdout, command);
           }
         }
@@ -414,6 +485,7 @@ export default {
   },
   created() {
     this.exec = require('child_process').exec;
+
 
     let commands = this.$q.localStorage.getItem('commands')
     if (commands) {
