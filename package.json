@@ -8,9 +8,7 @@
   "scripts": {
     "dev": "quasar dev -p 8081",
     "dev-electron": "quasar dev -m electron -p 8081",
-    "dev-android": "quasar dev -m cordova -T android -p 8081",
-    "build-android": "quasar build -m cordova -T android && npm run cordova-build-android",
-    "cordova-build-android": "cd src-cordova && cordova build android"
+    "build-electron": "quasar build -m electron"
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",
@@ -25,7 +23,8 @@
     "devtron": "^1.4.0",
     "electron": "^9.0.0",
     "electron-debug": "^3.0.1",
-    "electron-devtools-installer": "^3.0.0"
+    "electron-devtools-installer": "^3.0.0",
+    "electron-packager": "^14.1.1"
   },
   "browserslist": [
     "last 10 Chrome versions",

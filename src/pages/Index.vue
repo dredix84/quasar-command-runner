@@ -185,12 +185,14 @@
             @keyup.enter="handleUserEnterNewCommand"
             label="Title"
             class="q-mb-sm"
+            placeholder="Title of your command"
           />
           <q-input
             dense v-model="newCommand.command"
             @keyup.enter="handleUserEnterNewCommand"
             label="Enter your new command here"
             class="q-mb-sm"
+            placeholder="Actual command. Example: ping"
           />
 
           <q-chip square>
@@ -270,8 +272,8 @@ export default {
       commands: [],
       newCommand: {
         id: null,
-        title: 'Ping Localhost',
-        command: 'ping',
+        title: '',
+        command: '',
         icon: {label: 'Execution', value: 'ondemand_video'},
         lastExecuted: null,
         lastResult: null,
@@ -288,6 +290,9 @@ export default {
           {label: 'Send', value: 'send'},
           {label: 'Alarm', value: 'alarm'},
           {label: 'History', value: 'history'},
+          {label: 'Memory', value: 'memory'},
+          {label: 'Dev Board', value: 'developer_board'},
+          {label: 'Play', value: 'play_arrow'}
         ]
       }
     }
